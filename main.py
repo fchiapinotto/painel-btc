@@ -26,6 +26,9 @@ set_custom_styles()
 @st.cache_data(ttl=60)
 def load_data(timeframe: str = "1H"):
     df = fetch_and_process_candles(timeframe)
+    if df.empty:
+        # Retorna vazios para não quebrar o pipeline
+        return df, {}, {}, {}
     ind = compute_all_indicators(df)
     sr = extract_supports_resistances(df)
     signals = extract_high_level_signals(ind)
@@ -34,15 +37,15 @@ def load_data(timeframe: str = "1H"):
 # Puxa dados para 1H
 df, ind, sr, signals = load_data("1H")
 
-# Se falhar ao carregar, mostra erro e para
+# 2) Verificação de erro
 if df.empty:
     st.error("❌ Não foi possível carregar dados de candles. Tente novamente mais tarde.")
     st.stop()
 
-# 2) Top Card com preço, variação e badges
+# 3) Top Card com preço, variação e badges
 render_top_card(df, signals)
 
-# 3) Layout principal: Gráfico & Sidebar de GPT
+# 4) Layout principal: Gráfico & Sidebar de GPT
 col_main, col_side = st.columns([2, 1])
 
 with col_main:
@@ -63,15 +66,14 @@ with col_side:
     alerts = gpt_grid_scenarios(df, signals, events)
     render_alerts_table(alerts)
 
-# 4) Tabela de Indicadores
+# 5) Tabela de Indicadores
 st.markdown("### 📊 Indicadores Técnicos")
 render_indicators_table(ind)
 
-# 5) Cards de Cenários de Grid Trading
+# 6) Cards de Cenários de Grid Trading
 st.markdown("### 📋 Cenários de Grid Trading")
 render_grid_scenarios_cards(alerts)
 
-# 6) Lista de Eventos Relevantes
+# 7) Lista de Eventos Relevantes
 st.markdown("### 🗓️ Eventos Relevantes")
 render_events_list(events)
-
