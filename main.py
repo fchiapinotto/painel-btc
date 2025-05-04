@@ -31,8 +31,13 @@ def load_data(timeframe: str = "1H"):
     signals = extract_high_level_signals(ind)
     return df, ind, sr, signals
 
-# Puxando dados para 1H
+# Puxa dados para 1H
 df, ind, sr, signals = load_data("1H")
+
+# Se falhar ao carregar, mostra erro e para
+if df.empty:
+    st.error("❌ Não foi possível carregar dados de candles. Tente novamente mais tarde.")
+    st.stop()
 
 # 2) Top Card com preço, variação e badges
 render_top_card(df, signals)
@@ -69,3 +74,4 @@ render_grid_scenarios_cards(alerts)
 # 6) Lista de Eventos Relevantes
 st.markdown("### 🗓️ Eventos Relevantes")
 render_events_list(events)
+
