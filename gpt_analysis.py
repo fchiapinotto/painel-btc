@@ -1,5 +1,6 @@
 import openai
 import streamlit as st
+import json
 from openai.error import RateLimitError, OpenAIError
 
 # Configure sua chave de API no .streamlit/secrets.toml sob [openai]
@@ -16,6 +17,7 @@ def gpt_events() -> list[str]:
             max_tokens=300
         )
         content = resp.choices[0].message.content
+        # Supondo resposta em linhas:
         return [line.strip() for line in content.split("\n") if line.strip()]
     except RateLimitError:
         st.warning("⚠️ Limite de taxa atingido para eventos. Tente novamente depois.")
@@ -50,7 +52,7 @@ def gpt_highlight(df, signals) -> dict:
         return {"sentenca": "", "bullets": []}
 
 @st.cache_data(ttl=3600)
-def gpt_grid_scenarios(df, signals, events=None) -> list:
+def gpt_grid_scenarios(df, signals, events=None) -> list[dict]:
     """Proponha 3 cenários de grid trading (Long, Short, Neutro) (cache de 1 hora)."""
     price = df["close"].iloc[-1]
     base = f"Baseado no preço atual de BTC/USDT ({price:.2f}), nos sinais {signals}"
@@ -58,7 +60,7 @@ def gpt_grid_scenarios(df, signals, events=None) -> list:
     prompt = (
         base + ev_text +
         ", proponha 3 cenários de grid trading para futuros: Long, Short e Neutro. "
-        "Para cada cenário, informe 'Momento', 'Risco', 'Faixas', 'SL/TP', 'Alavancagem' e 'Valor sugerido'."
+        "Retorne um JSON array de objetos com campos: tipo, momento, risco, faixas, sl_tp, alavancagem, valor_sugerido."
     )
     try:
         resp = openai.ChatCompletion.create(
@@ -66,10 +68,13 @@ def gpt_grid_scenarios(df, signals, events=None) -> list:
             messages=[{"role": "user", "content": prompt}],
             max_tokens=400
         )
-        return resp.choices[0].message.content
+        content = resp.choices[0].message.content
+        # Parse JSON
+        scenarios = json.loads(content)
+        return scenarios if isinstance(scenarios, list) else []
     except RateLimitError:
         st.warning("⚠️ Limite de taxa atingido para cenários de grid. Tente novamente em 1 hora.")
         return []
-    except OpenAIError as e:
-        st.error(f"❌ Erro ao consultar OpenAI (grid scenarios): {e}")
+    except (OpenAIError, json.JSONDecodeError) as e:
+        st.error(f"❌ Erro ao processar cenários de grid: {e}")
         return []
