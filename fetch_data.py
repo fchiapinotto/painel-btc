@@ -2,22 +2,23 @@ import requests
 import pandas as pd
 import streamlit as st
 
-# Base da API de futuros USDT-margined (Mix)
+# Base da API de futuros USDT-margined (Mix v2)
 API_BASE = "https://api.bitget.com"
-SYMBOL   = "BTCUSDT"
-# Map dos timeframes para o parâmetro period da Bitget
-PERIODS  = {"1H": "1hour", "4H": "4hour", "1D": "1day"}
+SYMBOL   = "BTCUSDT"               # Par
+PRODUCT  = "USDT-FUTURES"          # Tipo de produto
+PERIODS  = {"1H": "1H", "4H": "4H", "1D": "1D"}  # granularity aceita esses valores
 
 def fetch_and_process_candles(timeframe: str) -> pd.DataFrame:
     """
-    Busca candles de futuros USDT-margined na Bitget e retorna um DataFrame.
+    Busca candles de futuros USDT-margined na Bitget (Mix v2) e retorna um DataFrame.
     """
-    period = PERIODS.get(timeframe, timeframe).lower()
-    url    = f"{API_BASE}/api/mix/v1/market/candles"
+    granularity = PERIODS.get(timeframe, timeframe)
+    url = f"{API_BASE}/api/v2/mix/market/candles"
     params = {
         "symbol": SYMBOL,
-        "period": period,
-        "size":   100           # usa 'size', não 'limit'
+        "granularity": granularity,
+        "limit": 100,
+        "productType": PRODUCT
     }
 
     try:
@@ -36,16 +37,17 @@ def fetch_and_process_candles(timeframe: str) -> pd.DataFrame:
         st.error(f"Resposta inválida da API: {resp.text}")
         return pd.DataFrame()
 
-    data = payload.get("data", [])
+    data = payload.get("data") or []
     if not data:
         st.warning("Nenhum dado de candle retornado para este timeframe.")
         return pd.DataFrame()
 
-    # Cada item de data: [timestamp, open, high, low, close, volume]
+    # Cada item: [timestamp, open, high, low, close, volume]
     df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume"])
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
     df[["open","high","low","close","volume"]] = df[["open","high","low","close","volume"]].astype(float)
     df.sort_values("timestamp", inplace=True)
     df.reset_index(drop=True, inplace=True)
     return df
+
 
