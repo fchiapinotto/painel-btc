@@ -4,5 +4,5 @@ pandas
 numpy
 scipy
 plotly
-openai>=1.0.0
+openai>=0.27.18
 ta
